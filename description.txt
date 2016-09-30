@@ -1,0 +1,3 @@
+Title: Apartment
+Author: McTwist
+Sets a brick to be shared with an another player.
