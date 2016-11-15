@@ -11,6 +11,26 @@ function Apartment::setOwner(%this){}
 registerInputEvent(fxDTSBrick, setApartment, "And Apartment");
 registerOutputEvent(Apartment, setOwner, "int 0 999999 0");
 
+// Get list of owners
+function fxDTSBrick::getOwnerList(%brick)
+{
+	%owners = "";
+	for (%i = 0; %i < %brick.numEvents; %i++)
+	{
+		if (%brick.eventInput[%i] !$= "setApartment" || %brick.eventOutput[%i] !$= "setOwner")
+			continue;
+		
+		%ID = %brick.eventOutputParameter[%i, 1];
+		
+		// Validate
+		if (!(%ID >= 0 || %ID <= 999999))
+			continue;
+		
+		// Add to list
+		%owners = %owners $= "" ? %ID : %owners SPC %id;
+	}
+	return %owners;
+}
 // Check if owner of the brick
 function fxDTSBrick::isOwner(%brick, %bl_id)
 {
@@ -102,6 +122,17 @@ package PackageApartment
 			if (%obj1.isOwner(getBrickGroupFromObject(%obj2).bl_id))
 			{
 				return 3;
+			}
+
+			// Check trust level
+			%owners = %obj1.getOwnerList();
+			%count = getWordCount(%owners);
+			for (%i = 0; %i < %count; %i++)
+			{
+				%client = findClientByBL_ID(getWord(%owners, %i));
+				%trust = getTrustLevel(%client, %obj2);
+				if (%trust >= 1)
+					return %trust;
 			}
 		}
 		return Parent::getTrustLevel(%obj1, %obj2);
