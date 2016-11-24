@@ -11,26 +11,6 @@ function Apartment::setOwner(%this){}
 registerInputEvent(fxDTSBrick, setApartment, "And Apartment");
 registerOutputEvent(Apartment, setOwner, "int 0 999999 0");
 
-// Get list of owners
-function fxDTSBrick::getOwnerList(%brick)
-{
-	%owners = "";
-	for (%i = 0; %i < %brick.numEvents; %i++)
-	{
-		if (%brick.eventInput[%i] !$= "setApartment" || %brick.eventOutput[%i] !$= "setOwner")
-			continue;
-		
-		%ID = %brick.eventOutputParameter[%i, 1];
-		
-		// Validate
-		if (!(%ID >= 0 || %ID <= 999999))
-			continue;
-		
-		// Add to list
-		%owners = %owners $= "" ? %ID : %owners SPC %id;
-	}
-	return %owners;
-}
 // Check if owner of the brick
 function fxDTSBrick::isOwner(%brick, %bl_id)
 {
@@ -42,7 +22,7 @@ function fxDTSBrick::isOwner(%brick, %bl_id)
 		%ID = %brick.eventOutputParameter[%i, 1];
 		
 		// Validate
-		if (!(%ID >= 0 || %ID <= 999999))
+		if (!(%ID >= 0 && %ID <= 999999))
 			continue;
 		
 		// Found it
@@ -50,6 +30,29 @@ function fxDTSBrick::isOwner(%brick, %bl_id)
 			return true;
 	}
 	return false;
+}
+// Check if got trust from owner
+function fxDTSBrick::getOwnerTrust(%brick, %brickgroup, %quick)
+{
+	for (%i = 0; %i < %brick.numEvents; %i++)
+	{
+		if (%brick.eventInput[%i] !$= "setApartment" || %brick.eventOutput[%i] !$= "setOwner")
+			continue;
+		
+		%ID = %brick.eventOutputParameter[%i, 1];
+		
+		// Validate
+		if (!(%ID >= 0 && %ID <= 999999))
+			continue;
+		
+		// Has trust, doesn't matter which direction we check
+		if (%quick && %brickgroup.Trust[%ID] >= 1)
+			return %brickgroup.Trust[%ID];
+		// A more correct check
+		else if (!%quick && isObject(%group = "BrickGroup_" @ %ID) && (%trust = getTrustLevel(%group, %brickgroup)) >= 1)
+			return %trust;
+	}
+	return 0;
 }
 // Get first owner
 function fxDTSBrick::getFirstOwner(%brick)
@@ -62,7 +65,7 @@ function fxDTSBrick::getFirstOwner(%brick)
 		%ID = %brick.eventOutputParameter[%i, 1];
 		
 		// Validate
-		if (!(%ID >= 0 || %ID <= 999999))
+		if (!(%ID >= 0 && %ID <= 999999))
 			continue;
 		
 		return %ID;
@@ -76,7 +79,11 @@ package PackageApartment
 	// When the brick is loaded
 	function fxDTSBrick::onLoadPlant(%brick)
 	{
-		Parent::onLoadPlant(%brick);
+		%ret = Parent::onLoadPlant(%brick);
+
+		// New Duplicator placed it
+		if (isObject(%brick.client))
+			return %ret;
 		
 		%owner = -1;
 		// Check bricks down
@@ -85,12 +92,6 @@ package PackageApartment
 			%next = %brick.getDownBrick(%i);
 			%owner = %next.getFirstOwner();
 		}
-		// Check bricks up
-		//for (%i = 0; %owner $= -1 && %i < %brick.getNumUpBricks(); %i++)
-		//{
-		//	%next = %brick.getUpBrick(%i);
-		//	%owner = %next.getFirstOwner();
-		//}
 		// Found real owner
 		if (%owner !$= -1)
 		{
@@ -109,6 +110,8 @@ package PackageApartment
 			// This is critical
 			%group.schedule(0, add, %brick);
 		}
+
+		return %ret;
 	}
 	
 	// Checking trust level
@@ -118,24 +121,37 @@ package PackageApartment
 		if (isObject(%obj1) && %obj1.getType() & $TypeMasks::FxBrickAlwaysObjectType
 			&& isObject(%obj2) && %obj2.getType() & $TypeMasks::FxBrickAlwaysObjectType)
 		{
+			%group = %obj2.getGroup();
 			// Is a renter
-			if (%obj1.isOwner(getBrickGroupFromObject(%obj2).bl_id))
+			if (%obj1.isOwner(%group.bl_id))
 			{
 				return 3;
 			}
 
-			// Check trust level
-			%owners = %obj1.getOwnerList();
-			%count = getWordCount(%owners);
-			for (%i = 0; %i < %count; %i++)
+			// Get trust level
+			if ((%trust = %obj1.getOwnerTrust(%group, false)) >= 1)
 			{
-				%client = findClientByBL_ID(getWord(%owners, %i));
-				%trust = getTrustLevel(%client, %obj2);
-				if (%trust >= 1)
-					return %trust;
+				return %trust;
 			}
 		}
 		return Parent::getTrustLevel(%obj1, %obj2);
+	}
+
+	// New Duplicator fast trust check
+	// Made differently to ease the speed instead of versatility
+	function ndFastTrustCheck(%brick, %bl_id, %brickgroup)
+	{
+		if (%brick.isOwner(%bl_id))
+		{
+			return true;
+		}
+
+		if (%brick.getOwnerTrust(%brickgroup, true) >= 1)
+		{
+			return true;
+		}
+
+		return Parent::ndFastTrustCheck(%brick, %bl_id, %brickgroup);
 	}
 };
 activatePackage(PackageApartment);
