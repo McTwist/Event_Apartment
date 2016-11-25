@@ -16,6 +16,8 @@ function fxDTSBrick::isOwner(%brick, %bl_id)
 {
 	for (%i = 0; %i < %brick.numEvents; %i++)
 	{
+		if (!%brick.eventEnabled[%i])
+			continue;
 		if (%brick.eventInput[%i] !$= "setApartment" || %brick.eventOutput[%i] !$= "setOwner")
 			continue;
 		
@@ -36,6 +38,8 @@ function fxDTSBrick::getOwnerTrust(%brick, %brickgroup, %quick)
 {
 	for (%i = 0; %i < %brick.numEvents; %i++)
 	{
+		if (!%brick.eventEnabled[%i])
+			continue;
 		if (%brick.eventInput[%i] !$= "setApartment" || %brick.eventOutput[%i] !$= "setOwner")
 			continue;
 		
@@ -59,6 +63,8 @@ function fxDTSBrick::getFirstOwner(%brick)
 {
 	for (%i = 0; %i < %brick.numEvents; %i++)
 	{
+		if (!%brick.eventEnabled[%i])
+			continue;
 		if (%brick.eventInput[%i] !$= "setApartment" || %brick.eventOutput[%i] !$= "setOwner")
 			continue;
 		
