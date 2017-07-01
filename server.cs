@@ -79,6 +79,31 @@ function fxDTSBrick::getFirstOwner(%brick)
 	return -1;
 }
 
+// Add a new apartment owner
+function fxDTSBrick::addApartmentOwner(%brick, %bl_id)
+{
+	// These are required for the Apartment system to work properly
+	%brick.eventEnabled[%brick.numEvents] = true;
+	%brick.eventInput[%brick.numEvents] = "setApartment";
+	%brick.eventOutput[%brick.numEvents] = "setOwner";
+	%brick.eventOutputParameter[%brick.numEvents, 1] = %bl_id;
+
+	// These are required for the event system to not go berserk
+	%brick.eventOutputAppendClient[%brick.numEvents] = true;
+	%brick.eventTarget[%brick.numEvents] = "And";
+	%brick.eventDelay[%brick.numEvents] = 0;
+	// Note: This could be done manually, but left it both for reference and compatibility
+	%inputIdx = inputEvent_GetInputEventIdx("setApartment");
+	%targetIdx = inputEvent_GetTargetIndex("fxDtsBrick", %inputIdx, %brick.eventTarget[%brick.numEvents]);
+	%classId = %targetIdx >= 0 ? getWord(getField($InputEvent_TargetListfxDTSBrick_[%inputIdx], %targetIdx), 1) : "fxDTSBrick";
+	%outputIdx = outputEvent_GetOutputEventIdx(%classId, %brick.eventOutput[%brick.numEvents]);
+	%brick.eventInputIdx[%brick.numEvents] = %inputIdx;
+	%brick.eventTargetIdx[%brick.numEvents] = %targetIdx;
+	%brick.eventOutputIdx[%brick.numEvents] = %outputIdx;
+
+	%brick.numEvents++;
+}
+
 // The real "magic"
 package PackageApartment
 {
