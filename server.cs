@@ -82,6 +82,8 @@ function fxDTSBrick::getFirstOwner(%brick)
 // Add a new apartment owner
 function fxDTSBrick::addApartmentOwner(%brick, %bl_id)
 {
+	// Avoid empty string
+	%brick.numEvents += 0;
 	// These are required for the Apartment system to work properly
 	%brick.eventEnabled[%brick.numEvents] = true;
 	%brick.eventInput[%brick.numEvents] = "setApartment";
